@@ -1,51 +1,34 @@
 # Huawei LMS Backend
 
-Backend API for the Huawei Learning Management System.
+Backend API for the Huawei Learning Management System built with FastAPI.
+
+---
 
 ## Technologies
 
 - Python
 - FastAPI
-- SQLite
 - SQLAlchemy
+- SQLite
 - Pandas
 - OpenPyXL
+- Pydantic
+- python-dotenv
+
+---
 
 ## Features
 
-- Import students from Excel
-- Manage students
-- Manage Huawei courses
-- Course modules
-- Student progress tracking
+- Student Management
+- Huawei Courses
+- Course Modules
+- Student Progress Tracking
 - Leaderboard
+- Excel Student Import
 - REST API
+- Interactive Swagger Documentation
 
-## Installation
-
-1. Clone the repository:
-
-```bash
-git clone https://github.com/beboxcs/-Huawei-LMS-Backend.git
-```
-
-2. Install the required packages:
-
-```bash
-pip install -r requirements.txt
-```
-
-3. Run the server:
-
-```bash
-uvicorn app.main:app --reload
-```
-
-4. Open the API documentation:
-
-```
-http://127.0.0.1:8000/docs
-```
+---
 
 ## Project Structure
 
@@ -54,24 +37,129 @@ Huawei-LMS-Backend/
 │
 ├── app/
 │   ├── routes/
-│   ├── database.py
 │   ├── models.py
 │   ├── schemas.py
+│   ├── database.py
 │   ├── main.py
-│   ├── seed_data.py
-│   └── import_students.py
+│   └── ...
 │
 ├── excel/
 ├── requirements.txt
 ├── README.md
-└── .gitignore
+├── .env
+└── students.db
 ```
+
+---
+
+## Installation
+
+Clone the repository:
+
+```bash
+git clone https://github.com/beboxcs/-Huawei-LMS-Backend.git
+```
+
+Go to the project folder:
+
+```bash
+cd Huawei-LMS-Backend
+```
+
+Create a virtual environment:
+
+```bash
+python -m venv venv
+```
+
+Activate it:
+
+Windows
+
+```bash
+venv\Scripts\activate
+```
+
+Install the dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## Environment Variables
+
+Create a `.env` file in the project root.
+
+Example:
+
+```env
+DATABASE_URL=sqlite:///./students.db
+```
+
+---
+
+## Run the Server
+
+```bash
+uvicorn app.main:app --reload
+```
+
+The API will be available at:
+
+```
+http://127.0.0.1:8000
+```
+
+Swagger Documentation:
+
+```
+http://127.0.0.1:8000/docs
+```
+
+---
+
+## API Endpoints
+
+### Students
+
+- GET `/student/{student_code}`
+
+### Modules
+
+- GET `/modules/{course_name}`
+
+### Progress
+
+- GET `/progress/{student_code}`
+- PUT `/progress`
+
+### Leaderboard
+
+- GET `/leaderboard/{course_name}`
+
+---
 
 ## Database
 
-- SQLite
-- SQLAlchemy ORM
+SQLite
 
-## Framework
+Tables:
 
-- FastAPI
+- Students
+- Courses
+- Modules
+- Progress
+
+---
+
+## Team
+
+Huawei LMS Development Team
+
+---
+
+## License
+
+This project was developed for educational purposes.
