@@ -1,7 +1,15 @@
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+print("Current directory:", os.getcwd())
+print("DATABASE_URL:", os.getenv("DATABASE_URL"))
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-DATABASE_URL = "sqlite:///./students.db"
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 engine = create_engine(
     DATABASE_URL,
@@ -15,3 +23,11 @@ SessionLocal = sessionmaker(
 )
 
 Base = declarative_base()
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

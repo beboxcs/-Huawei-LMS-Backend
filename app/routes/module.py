@@ -1,30 +1,41 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
 
-from app.database import SessionLocal
-from app.models import Module
+from app.database import get_db
+from app.models import Course
+from app.schemas import ModuleResponse
 
 router = APIRouter()
 
 
-@router.get("/course/{course_id}/modules")
-def get_modules(course_id: int):
+# -----------------------------
+# Get Modules of a Course
+# -----------------------------
+@router.get(
+    "/modules/{course_name}",
+    response_model=list[ModuleResponse],
+    summary="Get Course Modules",
+    description="Returns all modules that belong to a Huawei course."
+)
+def get_modules(
+    course_id: int,
+    db: Session = Depends(get_db)
+):
 
-    db = SessionLocal()
+    course = db.query(Course).filter(
+        Course.id == course_id
+    ).first()
 
-    modules = (
-        db.query(Module)
-        .filter(Module.course_id == course_id)
-        .order_by(Module.module_order)
-        .all()
-    )
-
-    db.close()
-
-    if not modules:
+    if not course:
         raise HTTPException(
             status_code=404,
-            detail="No modules found for this course"
+            detail="Course not found"
         )
+
+    modules = sorted(
+        course.modules,
+        key=lambda module: module.module_order
+    )
 
     return [
         {

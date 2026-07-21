@@ -1,42 +1,64 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
 
-from app.database import SessionLocal
-from app.models import Progress, Student, Module, Course
-from app.schemas import ProgressUpdate
+from app.database import get_db
+from app.models import Student, Module, Progress
+from app.schemas import (
+    ProgressUpdate,
+    ProgressResponse
+)
 
 router = APIRouter()
 
 
-# ---------------------------------
-# Update Module Progress
-# ---------------------------------
-@router.put("/progress")
-def update_progress(data: ProgressUpdate):
+@router.put(
+    "/progress",
+    summary="Update Student Progress",
+    description="Marks a module as completed or incomplete for a student."
+)
+def update_progress(
+    data: ProgressUpdate,
+    db: Session = Depends(get_db)
+):
 
-    db = SessionLocal()
-
+    # -------------------------
+    # Check student exists
+    # -------------------------
     student = db.query(Student).filter(
         Student.id == data.student_id
     ).first()
 
     if not student:
-        db.close()
         raise HTTPException(
             status_code=404,
             detail="Student not found"
         )
 
+    # -------------------------
+    # Check module exists
+    # -------------------------
     module = db.query(Module).filter(
         Module.id == data.module_id
     ).first()
 
     if not module:
-        db.close()
         raise HTTPException(
             status_code=404,
             detail="Module not found"
         )
 
+    # -------------------------
+    # Check module belongs to student's course
+    # -------------------------
+    if module.course_id != student.course_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Module does not belong to student's course"
+        )
+
+    # -------------------------
+    # Update or Create Progress
+    # -------------------------
     progress = db.query(Progress).filter(
         Progress.student_id == data.student_id,
         Progress.module_id == data.module_id
@@ -53,99 +75,44 @@ def update_progress(data: ProgressUpdate):
         db.add(progress)
 
     db.commit()
-    db.close()
 
     return {
         "message": "Progress updated successfully"
     }
 
 
-# ---------------------------------
-# Student Progress Percentage
-# ---------------------------------
-@router.get("/progress/{student_code}")
-def get_progress(student_code: str):
+@router.get(
+    "/progress/{student_code}",
+    response_model=list[ProgressResponse],
+    summary="Get Student Progress",
+    description="Returns all modules in the student's course and whether each one has been completed."
+)
+def get_progress(
+    student_code: str,
+    db: Session = Depends(get_db)
+):
 
-    db = SessionLocal()
-
+    # -------------------------
+    # Find student
+    # -------------------------
     student = db.query(Student).filter(
         Student.student_code == student_code
     ).first()
 
     if not student:
-        db.close()
         raise HTTPException(
             status_code=404,
             detail="Student not found"
         )
 
-    course = db.query(Course).filter(
-        Course.id == student.course_id
-    ).first()
-
-    if not course:
-        db.close()
-        raise HTTPException(
-            status_code=404,
-            detail="Course not found"
-        )
-
+    # -------------------------
+    # Get all modules for student's course
+    # -------------------------
     modules = db.query(Module).filter(
-        Module.course_id == course.id
+        Module.course_id == student.course_id
+    ).order_by(
+        Module.module_order
     ).all()
-
-    total_modules = len(modules)
-
-    module_ids = [module.id for module in modules]
-
-    completed_modules = db.query(Progress).filter(
-        Progress.student_id == student.id,
-        Progress.module_id.in_(module_ids),
-        Progress.completed == True
-    ).count()
-
-    percentage = 0
-
-    if total_modules > 0:
-        percentage = round((completed_modules / total_modules) * 100)
-
-    db.close()
-
-    return {
-        "student": student.name,
-        "student_code": student.student_code,
-        "course": course.name,
-        "completed_modules": completed_modules,
-        "total_modules": total_modules,
-        "progress_percentage": percentage
-    }
-
-
-# ---------------------------------
-# Student Modules
-# ---------------------------------
-@router.get("/student/{student_code}/modules")
-def get_student_modules(student_code: str):
-
-    db = SessionLocal()
-
-    student = db.query(Student).filter(
-        Student.student_code == student_code
-    ).first()
-
-    if not student:
-        db.close()
-        raise HTTPException(
-            status_code=404,
-            detail="Student not found"
-        )
-
-    modules = (
-        db.query(Module)
-        .filter(Module.course_id == student.course_id)
-        .order_by(Module.module_order)
-        .all()
-    )
 
     result = []
 
@@ -156,13 +123,12 @@ def get_student_modules(student_code: str):
             Progress.module_id == module.id
         ).first()
 
-        result.append({
-            "id": module.id,
-            "title": module.title,
-            "order": module.module_order,
-            "completed": progress.completed if progress else False
-        })
-
-    db.close()
+        result.append(
+            ProgressResponse(
+                module_id=module.id,
+                module_title=module.title,
+                completed=progress.completed if progress else False
+            )
+        )
 
     return result

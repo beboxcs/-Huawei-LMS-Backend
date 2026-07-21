@@ -1,7 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
 
-from app.database import SessionLocal
-from app.models import Student, Course
+from app.database import get_db
+from app.models import Student
+from app.schemas import StudentResponse
 
 router = APIRouter()
 
@@ -9,27 +11,26 @@ router = APIRouter()
 # -----------------------------
 # Get Student Information
 # -----------------------------
-@router.get("/student/{student_code}")
-def get_student(student_code: str):
-
-    db = SessionLocal()
+@router.get(
+    "/student/{student_code}",
+    response_model=StudentResponse,
+    summary="Get Student Information",
+    description="Returns all information about a student using the student code."
+)
+def get_student(
+    student_code: str,
+    db: Session = Depends(get_db)
+):
 
     student = db.query(Student).filter(
         Student.student_code == student_code
     ).first()
 
     if not student:
-        db.close()
         raise HTTPException(
             status_code=404,
             detail="Student not found"
         )
-
-    course = db.query(Course).filter(
-        Course.id == student.course_id
-    ).first()
-
-    db.close()
 
     return {
         "id": student.id,
@@ -38,5 +39,5 @@ def get_student(student_code: str):
         "email": student.email,
         "department": student.department,
         "grade": student.grade,
-        "course": course.name
+        "course": student.course.name
     }

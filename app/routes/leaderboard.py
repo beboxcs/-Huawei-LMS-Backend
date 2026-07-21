@@ -1,15 +1,23 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
 
-from app.database import SessionLocal
-from app.models import Student, Course, Module, Progress
+from app.database import get_db
+from app.models import Course, Progress
+from app.schemas import LeaderboardResponse
 
 router = APIRouter()
 
 
-@router.get("/leaderboard/{course_name}")
-def leaderboard(course_name: str):
-
-    db = SessionLocal()
+@router.get(
+    "/leaderboard/{course_name}",
+    response_model=list[LeaderboardResponse],
+    summary="Course Leaderboard",
+    description="Ranks students by completion percentage within a Huawei course."
+)
+def leaderboard(
+    course_name: str,
+    db: Session = Depends(get_db)
+):
 
     # Find the course
     course = db.query(Course).filter(
@@ -17,24 +25,16 @@ def leaderboard(course_name: str):
     ).first()
 
     if not course:
-        db.close()
         raise HTTPException(
             status_code=404,
             detail="Course not found"
         )
 
-    # All students in this course
-    students = db.query(Student).filter(
-        Student.course_id == course.id
-    ).all()
-
-    # All modules for this course
-    modules = db.query(Module).filter(
-        Module.course_id == course.id
-    ).all()
+    students = course.students
+    modules = course.modules
 
     total_modules = len(modules)
-    module_ids = [m.id for m in modules]
+    module_ids = [module.id for module in modules]
 
     leaderboard = []
 
@@ -49,7 +49,9 @@ def leaderboard(course_name: str):
         percentage = 0
 
         if total_modules > 0:
-            percentage = round((completed / total_modules) * 100)
+            percentage = round(
+                completed * 100 / total_modules
+            )
 
         leaderboard.append({
             "student_code": student.student_code,
@@ -57,10 +59,8 @@ def leaderboard(course_name: str):
             "progress": percentage
         })
 
-    db.close()
-
     leaderboard.sort(
-        key=lambda x: x["progress"],
+        key=lambda student: student["progress"],
         reverse=True
     )
 
