@@ -2,28 +2,26 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Course
-from app.schemas import ModuleResponse
+from app.models import Course, Module
 
-router = APIRouter()
+router = APIRouter(
+    tags=["Modules"]
+)
 
 
-# -----------------------------
-# Get Modules of a Course
-# -----------------------------
 @router.get(
     "/modules/{course_name}",
-    response_model=list[ModuleResponse],
     summary="Get Course Modules",
     description="Returns all modules that belong to a Huawei course."
 )
 def get_modules(
-    course_id: int,
+    course_name: str,
     db: Session = Depends(get_db)
 ):
 
+    # Find the course by its name
     course = db.query(Course).filter(
-        Course.id == course_id
+        Course.name == course_name
     ).first()
 
     if not course:
@@ -32,9 +30,11 @@ def get_modules(
             detail="Course not found"
         )
 
-    modules = sorted(
-        course.modules,
-        key=lambda module: module.module_order
+    modules = (
+        db.query(Module)
+        .filter(Module.course_id == course.id)
+        .order_by(Module.module_order)
+        .all()
     )
 
     return [

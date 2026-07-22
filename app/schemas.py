@@ -34,8 +34,19 @@ class ModuleResponse(BaseModel):
 
 # ----------------------------
 # Progress Response
+# Used by GET /progress/{student_code}
 # ----------------------------
 class ProgressResponse(BaseModel):
+    module_id: int
+    module_title: str
+    completed: bool
+
+
+# ----------------------------
+# Progress Summary Response
+# Used by GET /progress-summary/{student_code}
+# ----------------------------
+class ProgressSummaryResponse(BaseModel):
     student: str
     student_code: str
     course: str

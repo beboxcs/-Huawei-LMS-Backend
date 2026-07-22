@@ -2,13 +2,16 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Student, Module, Progress
+from app.models import Student, Module, Progress, Course
 from app.schemas import (
     ProgressUpdate,
-    ProgressResponse
+    ProgressResponse,
+    ProgressSummaryResponse
 )
 
-router = APIRouter()
+router = APIRouter(
+    tags=["Progress"]
+)
 
 
 @router.put(
@@ -92,9 +95,7 @@ def get_progress(
     db: Session = Depends(get_db)
 ):
 
-    # -------------------------
     # Find student
-    # -------------------------
     student = db.query(Student).filter(
         Student.student_code == student_code
     ).first()
@@ -105,9 +106,7 @@ def get_progress(
             detail="Student not found"
         )
 
-    # -------------------------
-    # Get all modules for student's course
-    # -------------------------
+    # Get all modules
     modules = db.query(Module).filter(
         Module.course_id == student.course_id
     ).order_by(
@@ -132,3 +131,61 @@ def get_progress(
         )
 
     return result
+
+
+@router.get(
+    "/progress-summary/{student_code}",
+    response_model=ProgressSummaryResponse,
+    summary="Get Student Progress Summary",
+    description="Returns the student's overall course progress."
+)
+def get_progress_summary(
+    student_code: str,
+    db: Session = Depends(get_db)
+):
+
+    # Find student
+    student = db.query(Student).filter(
+        Student.student_code == student_code
+    ).first()
+
+    if not student:
+        raise HTTPException(
+            status_code=404,
+            detail="Student not found"
+        )
+
+    # Find course
+    course = db.query(Course).filter(
+        Course.id == student.course_id
+    ).first()
+
+    modules = db.query(Module).filter(
+        Module.course_id == student.course_id
+    ).all()
+
+    total_modules = len(modules)
+
+    module_ids = [module.id for module in modules]
+
+    completed_modules = db.query(Progress).filter(
+        Progress.student_id == student.id,
+        Progress.module_id.in_(module_ids),
+        Progress.completed == True
+    ).count()
+
+    progress_percentage = 0
+
+    if total_modules > 0:
+        progress_percentage = round(
+            (completed_modules / total_modules) * 100
+        )
+
+    return ProgressSummaryResponse(
+        student=student.name,
+        student_code=student.student_code,
+        course=course.name,
+        completed_modules=completed_modules,
+        total_modules=total_modules,
+        progress_percentage=progress_percentage
+    )
